@@ -70,6 +70,17 @@ public class MainContainer {
 		ContainerController newcontainer3 = a.initContainerInPlatform("localhost", "9889",
 				args_input[2].toString());
 
+		//Start coaches
+		a.startAgentInPlatformContainer(newcontainer2, "CoachA", "Agents.Coach", new Object[] { "A", numPlayers });
+		a.startAgentInPlatformContainer(newcontainer3, "CoachB", "Agents.Coach", new Object[] { "B", numPlayers });
+		
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		// Start players
 		for(int i = 0; i < numPlayers; i++) {
 			String playerA = "PlayerA" + (i+1);
@@ -81,18 +92,7 @@ public class MainContainer {
 		}
 		
 		try {
-			Thread.sleep(250);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		//Start coaches
-		a.startAgentInPlatformContainer(newcontainer2, "CoachA", "Agents.Coach", new Object[] { "A" });
-		a.startAgentInPlatformContainer(newcontainer3, "CoachB", "Agents.Coach", new Object[] { "B" });
-		
-		try {
-			Thread.sleep(250);
+			Thread.sleep(500);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
