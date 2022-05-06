@@ -70,12 +70,22 @@ public class MainContainer {
 		ContainerController newcontainer3 = a.initContainerInPlatform("localhost", "9889",
 				args_input[2].toString());
 
+		// Start Manager
+		a.startAgentInPlatformContainer(newcontainer1, "Manager", "Agents.Manager", new Object[] { });
+		
+		try {
+			Thread.sleep(300);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		//Start coaches
 		a.startAgentInPlatformContainer(newcontainer2, "CoachA", "Agents.Coach", new Object[] { "A", numPlayers });
 		a.startAgentInPlatformContainer(newcontainer3, "CoachB", "Agents.Coach", new Object[] { "B", numPlayers });
 		
 		try {
-			Thread.sleep(500);
+			Thread.sleep(300);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -89,16 +99,13 @@ public class MainContainer {
 			String playerB = "PlayerB" + (i+1);
 			String idB = "B" + (i+1);
 			a.startAgentInPlatformContainer(newcontainer3, playerB, "Agents.Player", new Object[] { idB });
+			//Sleep para os jogadores esperarem que o anterior já tenha informado o coach
+			try {
+				Thread.sleep(300);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		// Start Manager
-		a.startAgentInPlatformContainer(newcontainer1, "Manager", "Agents.Manager", new Object[] {});
 	}
 }

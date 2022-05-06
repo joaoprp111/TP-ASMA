@@ -1,9 +1,12 @@
 package Agents;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 
 import jade.core.Agent;
+import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.SimpleBehaviour;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAException;
@@ -26,7 +29,7 @@ public class Coach extends Agent{
 		
 		System.out.println("Coach da equipa " + team + " ativo!...");
 		
-		this.addBehaviour(new RegisterPlayers());
+		this.addBehaviour(new WaitForPlayersBehaviour());
 		/*this.addBehaviour(new ReceberConfirmacao(this));*/
 	}
 
@@ -35,21 +38,47 @@ public class Coach extends Agent{
 	}
 	
 	//Registering players as team members
-	private class RegisterPlayers extends CyclicBehaviour{
+	private class WaitForPlayersBehaviour extends SimpleBehaviour{
 		
 		public void action() {
-			ACLMessage msg = myAgent.receive();
-			if (msg != null && msg.getPerformative() == ACLMessage.INFORM) {
-				if (players.size() < maxTeamPlayers) {
-					AID playerAID = msg.getSender();
-					String player = playerAID.getLocalName();
-					System.out.println("Eu, " + myAgent.getLocalName() + " , recebi mensagem do player " + player);
-					players.add(playerAID);
-				} else {
-					System.out.println("Já tenho a minha equipa constituída, não posso aceitar mais jogadores!");
+			while(players.size() < maxTeamPlayers) {
+				ACLMessage msg = myAgent.receive();
+				if (msg != null && msg.getPerformative() == ACLMessage.INFORM) {
+						AID playerAID = msg.getSender();
+						String player = playerAID.getLocalName();
+						System.out.println("Eu, " + myAgent.getLocalName() + " , recebi mensagem do player " + player);
+						players.add(playerAID);
 				}
+				block();
 			}
-			block();
+			System.out.println("Coach " + team + ": Ja tenho a minha equipa completa!");
+			myAgent.addBehaviour(new SendPlayersToManagerBehaviour());
+			done();
+		}
+		
+		@Override
+		public boolean done() {
+			return true;
+		}
+	}
+	
+	//Só pode enviar quando tiver todos os jogadores armazenados no HashSet
+	private class SendPlayersToManagerBehaviour extends OneShotBehaviour{
+		
+		public void action() {
+			try {
+				// Set the Manager ID
+				AID manager = new AID("Manager", AID.ISLOCALNAME);
+				
+				// Crate message to notify manager of its presence
+				ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+				msg.addReceiver(manager);
+				msg.setContentObject(players);
+				myAgent.send(msg);
+				System.out.println("Coach " + team + " : Enviei os jogadores ao manager!");
+			} catch(IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }
