@@ -2,17 +2,19 @@ package Classes;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import jade.core.AID;
 
 public class Board {
 	private String[][] board;
-	private HashMap<String, Position> playersPositions;
+	private HashMap<AID, Position> playersPositions;
+	private static int visionFieldN = 7;
 	
 	public Board(int size, HashMap<String, HashSet<AID>> teams) {
 		String[][] b = createEmptyBoard(size);
 		HashSet<Position> takenPositions = new HashSet<Position>();
-		HashMap<String, Position> startingPositions = new HashMap<String, Position>();
+		HashMap<AID, Position> startingPositions = new HashMap<AID, Position>();
 		
 		//Percorrer cada equipa
 		for(Entry<String, HashSet<AID>> entry: teams.entrySet()) {
@@ -21,7 +23,8 @@ public class Board {
 			
 			//Percorrer a lista de jogadores da equipa
 			while(it.hasNext()) {
-				String player = it.next().getLocalName();
+				AID playerAID = it.next();
+				String player = playerAID.getLocalName();
 				int offset = "Player".length();
 				int finalOffset = player.length();
 				String playerId = player.substring(offset, finalOffset);
@@ -36,12 +39,37 @@ public class Board {
 				int startingPosX = p.getPosX();
 				int startingPosY = p.getPosY();
 				b[startingPosX][startingPosY] = playerId;
-				startingPositions.put(playerId, p);
+				startingPositions.put(playerAID, p);
 			}
 		}
 		
 		this.board = b;
 		this.playersPositions = startingPositions;
+	}
+	
+	public Map<AID,Map<AID,Position>> getVisionFields(){
+		Map<AID, Map<AID,Position>> visionFields = new HashMap<AID,Map<AID,Position>>();
+		
+		for(Entry<AID,Position> e: playersPositions.entrySet()) {
+			Position p = e.getValue();
+			AID a = e.getKey();
+			
+			//Recolher todas as posições incluídas no campo de visão
+			int posX = p.getPosX();
+			int posY = p.getPosY();
+			
+			Map<AID,Position> visionField = playersPositions.entrySet().stream()
+				.filter(map -> (!map.getValue().equals(p)) &&
+						(map.getValue().getPosX() >= posX - (visionFieldN/2)) &&
+						(map.getValue().getPosX() <= posX + (visionFieldN/2)) &&
+						(map.getValue().getPosY() >= posY - (visionFieldN/2)) &&
+						(map.getValue().getPosY() <= posY + (visionFieldN/2)))
+							.collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+			
+			visionFields.put(a,visionField);
+		}
+		
+		return visionFields;
 	}
 	
 	private String[][] createEmptyBoard(int size){

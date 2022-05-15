@@ -32,4 +32,9 @@ public class Position {
 		boolean positionEquals = (this.posX == other.getPosX()) && (this.posY == other.getPosY());
 		return positionEquals;
 	}
+	
+	@Override
+	public String toString() {
+		return Integer.toString(posX) + " x " + Integer.toString(posY);
+	}
 }

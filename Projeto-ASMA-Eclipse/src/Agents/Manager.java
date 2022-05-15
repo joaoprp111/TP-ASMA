@@ -1,8 +1,10 @@
 package Agents;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import Classes.Board;
+import Classes.Position;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
@@ -71,8 +73,8 @@ public class Manager extends Agent {
 			currentRound = 0;
 			prevRound = currentRound;
 			gameStarted = true;
-			addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
 			//System.out.print(board.toString());
+			addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
 		}
 	}
 	
@@ -110,7 +112,14 @@ public class Manager extends Agent {
 	}
 	
 	private void sendVisionFields() {
-		System.out.println("Falta enviar os campos de cada jogador para os respetivos treinadores!");
+		//Enviar os campos de visão de cada jogador para o respetivo treinador
+		Map<AID,Map<AID,Position>> visionFields = board.getVisionFields();
+		/*for(Entry<AID,Map<AID,Position>> e: visionFields.entrySet()) {
+			System.out.println(e.getKey().getLocalName());
+			for(Entry<AID,Position> positions: e.getValue().entrySet()) {
+				System.out.println("Jogador: " + positions.getKey().getLocalName() + " | Posicao: " + positions.getValue().toString());
+			}
+		}*/
 	}
 	
 }
