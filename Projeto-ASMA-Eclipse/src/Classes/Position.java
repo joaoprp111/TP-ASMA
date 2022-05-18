@@ -1,6 +1,8 @@
 package Classes;
 
-public class Position {
+import jade.util.leap.Serializable;
+
+public class Position implements Serializable{
 	private int posX;
 	private int posY;
 	

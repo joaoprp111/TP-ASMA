@@ -1,10 +1,14 @@
 package Agents;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import Classes.Board;
 import Classes.Position;
+import Classes.VisionField;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
@@ -73,22 +77,20 @@ public class Manager extends Agent {
 			currentRound = 0;
 			prevRound = currentRound;
 			gameStarted = true;
-			//System.out.print(board.toString());
-			addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
+			System.out.print(board.toString());
+			changePlayingTeam();
+			sendVisionFields(myAgent, currentPlayingTeam);
+			System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
+			//System.out.print(currentPlayingTeam);
+			//addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
 		}
 	}
 	
-	private class PrepareRoundBehaviour extends TickerBehaviour{
-		public PrepareRoundBehaviour(Agent a, long period) {
-			super(a, period);
-		}
-		
-		public void onTick() {
-			if((currentRound == 0) || (currentRound > prevRound)) {
-				prevRound = currentRound;
-				changePlayingTeam();
-				sendVisionFields();
-			}
+	
+	private class ChangeStateBehaviour extends OneShotBehaviour{
+		public void action() {
+			changePlayingTeam();
+			
 		}
 	}
 	
@@ -111,15 +113,40 @@ public class Manager extends Agent {
 		}
 	}
 	
-	private void sendVisionFields() {
+	private void sendVisionFields(Agent a, String team) {
 		//Enviar os campos de visão de cada jogador para o respetivo treinador
+		Map<AID,Position> playersPosition = board.getPositions(team);
 		Map<AID,Map<AID,Position>> visionFields = board.getVisionFields();
-		/*for(Entry<AID,Map<AID,Position>> e: visionFields.entrySet()) {
+		int offset = ("Player" + team).length();
+		
+		//Filtrar pela equipa 
+		Map<AID,Map<AID, Position>> visionFieldsTeam = visionFields.entrySet().stream()
+				.filter(map -> map.getKey().getLocalName()
+						.substring(0,offset).equals("Player" + team))
+				.collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+		
+		VisionField vf = new VisionField(visionFieldsTeam, playersPosition);
+		
+		/*for(Entry<AID,Map<AID,Position>> e: visionFieldsTeamA.entrySet()) {
 			System.out.println(e.getKey().getLocalName());
 			for(Entry<AID,Position> positions: e.getValue().entrySet()) {
 				System.out.println("Jogador: " + positions.getKey().getLocalName() + " | Posicao: " + positions.getValue().toString());
 			}
 		}*/
+		
+		//Enviar para o coach
+		try {
+			// CoachID
+			AID coach = new AID("Coach" + team, AID.ISLOCALNAME);
+			
+			// Crate message to notify manager of its presence
+			ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+			msg.addReceiver(coach);
+			msg.setContentObject(vf);
+			a.send(msg);
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 }

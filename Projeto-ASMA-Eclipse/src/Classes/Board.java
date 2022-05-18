@@ -72,6 +72,13 @@ public class Board {
 		return visionFields;
 	}
 	
+	public Map<AID, Position> getPositions(String team){
+		int offset = "PlayerX".length();
+		return playersPositions.entrySet().stream().filter(map -> map.getKey().getLocalName()
+				.substring(0,offset).equals("Player" + team))
+				.collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+	}
+	
 	private String[][] createEmptyBoard(int size){
 		String[][] b = new String[size][size];
 		for(int i = 0; i < size; i++)
@@ -90,8 +97,21 @@ public class Board {
 	public String toString() {
 		String result = "";
 		for(int i = 0; i < board.length; i++) {
-			for(int j = 0; j < board.length; j++)
-				result += " | " + board[i][j];
+			for(int j = 0; j < board.length; j++) {
+				if(board[i][j] != "-") {
+					AID id = new AID("Player" + board[i][j], AID.ISLOCALNAME);
+					Position p = playersPositions.get(id);
+					if(i == 17 && j == 17) {
+						result += " | " + "C";
+					}
+					else {
+						result += " | " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
+					}
+				}
+				else {
+					result += " | " + board[i][j];
+				}
+			}
 			result += " |\n";
 		}
 		return result;
