@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import Classes.Board;
+import Classes.Decision;
 import Classes.Position;
 import Classes.VisionField;
 import jade.core.AID;
@@ -21,7 +22,7 @@ public class Manager extends Agent {
 	private static int NUMTEAMS = 2;
 	private boolean gameStarted = false;
 	private int currentRound = -1;
-	private int prevRound = -1;
+	private int teamPlayCount = 0;
 	private String currentPlayingTeam;
 	private Board board; //O tabuleiro vai apresentar os jogadores por A1, B1, etc; Onde não estiver ninguém a ocupar posição fica string "-"
 	private boolean knowsAllPlayers = false;
@@ -61,6 +62,31 @@ public class Manager extends Agent {
 							}
 						}
 					}
+					else if(p == ACLMessage.REQUEST) {
+						teamPlayCount++;
+						//Pedido para mover jogadores
+						Decision d = (Decision) msg.getContentObject();
+						Map<AID,Position> destinations = d.getDestinations();
+						//Verificar posicoes validas e mover se for possivel
+						for(Entry<AID,Position> entry: destinations.entrySet()) {
+							Position dest = entry.getValue();
+							Map<AID,Position> currentPositions = board.getAllPositions();
+							
+							if(!currentPositions.values().contains(dest)) {
+								//Pode mover
+								board.setPosition(entry.getKey(), dest);
+							}
+						}
+						changePlayingTeam();
+						sendVisionFields(myAgent, currentPlayingTeam);
+						System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
+						if(teamPlayCount == 2) {
+							teamPlayCount = 0;
+							currentRound++;
+							System.out.println("Ronda " + currentRound);
+							System.out.print(board.toString());
+						}
+					}
 				}
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -75,8 +101,7 @@ public class Manager extends Agent {
 			board = new Board(N, teams);
 			System.out.println("Manager: Os jogadores ja estao prontos a jogar!");
 			currentRound = 0;
-			prevRound = currentRound;
-			gameStarted = true;
+			System.out.println("Ronda " + currentRound);
 			System.out.print(board.toString());
 			changePlayingTeam();
 			sendVisionFields(myAgent, currentPlayingTeam);
@@ -86,21 +111,14 @@ public class Manager extends Agent {
 		}
 	}
 	
-	
-	private class ChangeStateBehaviour extends OneShotBehaviour{
-		public void action() {
-			changePlayingTeam();
-			
-		}
-	}
-	
 	private void changePlayingTeam() {
 		Set<String> teamIds = teams.keySet();
-		if(currentRound == 0) {
+		if(!gameStarted) {
 			String[] arr = teamIds.toArray(new String[teamIds.size()]);
 			Random r = new Random();
 			int randNum = r.nextInt(teamIds.size());
 			this.currentPlayingTeam = arr[randNum];
+			gameStarted = true;
 		} else {
 			Iterator<String> it = teamIds.iterator();
 			while(it.hasNext()) {

@@ -79,6 +79,20 @@ public class Board {
 				.collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
 	}
 	
+	public Map<AID, Position> getAllPositions(){
+		return this.playersPositions;
+	}
+	
+	public void setPosition(AID a, Position p) {
+		Position oldP = playersPositions.replace(a, p);
+		int oldL = oldP.getPosX();
+		int oldC = oldP.getPosY();
+		int l = p.getPosX();
+		int c = p.getPosY();
+		board[oldL][oldC] = "-";
+		board[l][c] = a.getLocalName().substring("Player".length(),a.getLocalName().length());
+	}
+	
 	private String[][] createEmptyBoard(int size){
 		String[][] b = new String[size][size];
 		for(int i = 0; i < size; i++)

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import Classes.Decision;
 import Classes.Position;
 import Classes.VisionField;
 import jade.core.Agent;
@@ -99,14 +100,16 @@ public class Coach extends Agent{
 					System.out.println("Recebi os campos de visao");
 					System.out.print(vf.toString());
 					Map<AID,Position> playersDestinations = makeDecision(vf);
-					if(playersDestinations.keySet().size() == 0) {
-						System.out.print("Nao tem nada");
+					Decision d = new Decision(playersDestinations);
+					if(playersDestinations.size() > 0) {
+						ACLMessage resp = msg.createReply();
+						//System.out.print(d.toString());
+						resp.setContentObject(d);
+						resp.setPerformative(ACLMessage.REQUEST);
+						myAgent.send(resp);
 					}
-					for(Entry<AID,Position> entry: playersDestinations.entrySet()) {
-						System.out.print("Jogador " + entry.getKey().getLocalName() + " | Destino: (" +
-					entry.getValue().getPosX() + "," + entry.getValue().getPosY() + ")");
 					}
-				} catch (UnreadableException e) {
+				catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -136,7 +139,7 @@ public class Coach extends Agent{
 		}
 		
 		if (noEnemies) {
-			System.out.print("No enemies");
+			//System.out.print("No enemies");
 			//Mover todos os players para o centro
 			for(Entry<AID, Position> entry: teamPlayersPositions.entrySet()) {
 				Position p = entry.getValue();
