@@ -111,7 +111,7 @@ public class Coach extends Agent{
 						resp.setPerformative(ACLMessage.REQUEST);
 						myAgent.send(resp);
 					}
-					}
+				}
 				catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -124,65 +124,53 @@ public class Coach extends Agent{
 	private Map<AID,Position> makeDecision(VisionField vf) {
 		Map<AID,Map<AID, Position>> visionFields = vf.getVisionField();
 		Map<AID,Position> teamPlayersPositions = vf.getPlayersPosition();
+		Map<AID,String> playerStates = new HashMap<AID,String>();
 		Map<AID,Position> destinations = new HashMap<AID,Position>();
 		boolean noEnemies = true;
+		int enemyCount = 0;
+		int friendCount = 0;
 		
-		//Verificar se nenhum player tem visão de um inimigo
-		for(AID player: visionFields.keySet()) {
-			String playerTeam = player.getLocalName().substring("Player".length(), "Player".length()+1);
-			if (visionFields.get(player) != null) {
-				Map<AID,Position> m = visionFields.get(player);
-				for(AID a: m.keySet()) {
-					if(!a.getLocalName().substring("Player".length(),"Player".length()+1).equals(playerTeam)) {
-						noEnemies = false;
-						break;
-					}
-				}
+		//Percorrer cada campo
+		for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
+			AID playerId = entry.getKey();
+			String playerTeam = playerId.getLocalName().substring("Player".length(), "Player".length()+1);
+			//Calcular critério de vantagem (nº de amigos - nº de inimigos)
+			for(AID vfPlayer: entry.getValue().keySet()) {
+				String vfPlayerTeam = vfPlayer.getLocalName().substring("Player".length(), "Player".length()+1);
+				//Comparar as equipas
+				if(!playerTeam.equals(vfPlayerTeam))
+					enemyCount++;
+				else
+					friendCount++;
 			}
-		}
-		
-		if (noEnemies) {
-			//System.out.print("No enemies");
-			//Mover todos os players para o centro
-			for(Entry<AID, Position> entry: teamPlayersPositions.entrySet()) {
-				Position p = entry.getValue();
+			int disadvantage = enemyCount - (friendCount + 1);
+			int advantage = (friendCount + 1) - enemyCount;
+			//Escolher o melhor
+			if(disadvantage > 0) {
+				//Foge
+				Position playerPos = teamPlayersPositions.get(playerId);
+				Position destination = s.runAway(playerId, entry.getValue(), playerPos);
+				destinations.put(playerId, destination);
+				playerStates.put(playerId, "Defense");
+			} else if(enemyCount > 0 && advantage >= 0) {
+				//Atacar
+				playerStates.put(playerId, "Attack");
+			} else {
+				//Ir para o centro
+				Position p = teamPlayersPositions.get(playerId);
 				Position destination = calculateDestinationNoEnemies(p);
-				destinations.put(entry.getKey(), destination);
+				destinations.put(playerId, destination);
+				playerStates.put(playerId, "GoCenter");
 			}
 		}
-		else {
-			//Estratégia
-			//Verificar para onde tem de ir cada jogador da equipa
-			for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
-				AID aid = entry.getKey();
-				Map<AID,Position> visionField = entry.getValue();
-				
-				String playerTeam = aid.getLocalName().substring("Player".length(), "Player".length()+1);
-				
-				boolean onlyEnemies = true;
-				//Verificar se todos os jogadores do campo deste jogador são inimigos
-				for(AID otherPlayer: visionField.keySet()) {
-					if(otherPlayer.getLocalName().substring("Player".length(),"Player".length()+1).equals(playerTeam)) {
-						onlyEnemies = false;
-						break;
-					}
-				}
-				if(onlyEnemies) {
-					//Se forem só inimigos o destino é fugir de acordo com a estratégia 's'
-					Position playerPosition = teamPlayersPositions.get(aid);
-					Position destination = s.runAway(aid, visionField, playerPosition);
-					destinations.put(aid, destination);
-				}
-			}
-		}
+		
+		//Preparar ataque se for preciso
+		destinations = s.attack(visionFields, teamPlayersPositions, playerStates, destinations);
 		
 		return destinations;
 	}
 	
 	private Position calculateDestinationNoEnemies(Position p) {
-		Position dest;
-		int l = p.getPosX();
-		int c = p.getPosY();
 		
 		List<Position> pos = calculateValidPositions(p);
 		Position destination = getClosestPosition(pos);

@@ -1,6 +1,7 @@
 package Classes;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import Interface.IStrategy;
 import jade.core.AID;
@@ -10,9 +11,78 @@ public class AttackAndDefenseStrategy implements IStrategy {
 	// se o número de amigos + 1 for >= nº inimigos, ataca.
 
 	@Override
-	public Position attack(Map<AID,Map<AID, Position>> visionField, Map<AID,Position> teamPlayersPositions) {
+	public Map<AID,Position> attack(Map<AID,Map<AID, Position>> visionFields, Map<AID,Position> teamPlayersPositions, Map<AID,String> states,
+			Map<AID,Position> destinations) {
 		// TODO Auto-generated method stub
-		return null;
+		//Por default fica com o primeiro campo
+		Map<AID,Position> dests = destinations;
+		Map<AID,Position> selectedVf = new HashMap<AID, Position>();
+		String currentTeam = teamPlayersPositions.keySet().iterator()
+				.next().getLocalName().substring("Player".length(), "Player".length()+1);
+		
+		//Escolher o primeiro campo com estado de ataque
+		for(Entry<AID,Map<AID,Position>> e: visionFields.entrySet()) {
+			AID playerId = e.getKey();
+			if(states.get(playerId) == "Attack") {
+				selectedVf = e.getValue();
+				System.out.println("Campo do jogador  " + e.getKey().getLocalName() + " escolhido para atacar!");
+				break;
+			}
+		}
+		
+		int enemyCount = 0;
+		int friendCount = 0;
+		int bestAdvantage = -100;
+		
+		//Percorrer cada campo
+		for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
+			AID playerId = entry.getKey();
+			String playerTeam = playerId.getLocalName().substring("Player".length(), "Player".length()+1);
+			//Calcular critério de vantagem (nº de amigos - nº de inimigos)
+			for(AID vfPlayer: entry.getValue().keySet()) {
+				String vfPlayerTeam = vfPlayer.getLocalName().substring("Player".length(), "Player".length()+1);
+				//Comparar as equipas
+				if(!playerTeam.equals(vfPlayerTeam))
+					enemyCount++;
+				else
+					friendCount++;
+			}
+			int advantage = (friendCount + 1) - enemyCount;
+			//Escolher o melhor
+			if(enemyCount > 0 && advantage > bestAdvantage) {
+				bestAdvantage = advantage;
+				selectedVf = entry.getValue();
+				System.out.println("Campo do jogador  " + entry.getKey().getLocalName() + " escolhido para atacar!");
+			}
+		}
+		
+		//Mandar os amigos atacar um inimigo do campo escolhido (se tiverem o estado atacar ou ir para o centro)
+		if(selectedVf.size() > 0) {
+			System.out.println("Tamanho do campo: " + selectedVf.size());
+			Position target = null;
+			
+			for(Entry<AID,Position> e: selectedVf.entrySet()) {
+				//Se é de uma equipa diferente
+				if(!e.getKey().getLocalName().substring("Player".length(), "Player".length()+1).equals(currentTeam)) {
+					target = e.getValue();
+					break;
+				}
+			}
+			System.out.println("Posicao escolhida para atacar: " + target.toString());
+			
+			//Calcular os destinos de ataque dos jogadores da equipa
+			for(Entry<AID,Position> entry: teamPlayersPositions.entrySet()) {
+				AID playerId = entry.getKey();
+				if(states.get(playerId) == "Attack" || states.get(playerId) == "GoCenter") {
+					Position playerPosition = entry.getValue();
+					Position destination = calculateDestination(playerPosition,target);
+					if(dests.containsKey(playerId))
+						dests.replace(playerId,destination);
+				}
+			}
+		}
+		
+		return dests;
 	}
 
 	@Override
@@ -80,6 +150,49 @@ public class AttackAndDefenseStrategy implements IStrategy {
 		int p2C = p2.getPosY();
 		
 		return (int) Math.sqrt((p2C - p1C) * (p2C - p1C) + (p2L - p1L) * (p2L - p1L));
+	}
+	
+	private Position calculateDestination(Position p, Position target) {
+		
+		List<Position> pos = calculateValidPositions(p);
+		Position destination = getClosestPosition(pos, target);
+		
+		return destination;
+	}
+	
+	private Position getClosestPosition(List<Position> pos, Position targetPos) {
+		double dist = 1000;
+		Position best = new Position(-1,-1);
+		for(Position p: pos) {
+			int l = p.getPosX();
+			int c = p.getPosY();
+			int lDest = targetPos.getPosX();
+			int cDest = targetPos.getPosY();
+			
+			double newDist = Math.sqrt((cDest - c) * (cDest - c) + (lDest - l) * (lDest - l));
+			if(newDist < dist) {
+				dist = newDist;
+				best = p;
+			}
+		}
+		
+		return best;
+	}
+	
+	private List<Position> calculateValidPositions(Position p) {
+		List<Position> list = new ArrayList<Position>();
+		int l = p.getPosX();
+		int c = p.getPosY();
+		
+		for(int i = l-1; i < l+2; i++) {
+			for(int j = c-1; j < c+2; j++) {
+				Position p1 = new Position(i,j);
+				if(!p1.equals(p))
+					list.add(p1);
+			}
+		}
+		
+		return list.stream().filter(position -> isValid(position)).toList();
 	}
 	
 	private List<Position> calculateValidPositions(Position p, List<Position> enemiesPositions) {
