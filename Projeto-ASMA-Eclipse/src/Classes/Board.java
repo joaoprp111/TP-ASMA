@@ -115,12 +115,7 @@ public class Board {
 				if(board[i][j] != "-") {
 					AID id = new AID("Player" + board[i][j], AID.ISLOCALNAME);
 					Position p = playersPositions.get(id);
-					if(i == 17 && j == 17) {
-						result += " | " + "C";
-					}
-					else {
-						result += " | " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
-					}
+					result += " | " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
 				}
 				else {
 					result += " | " + board[i][j];

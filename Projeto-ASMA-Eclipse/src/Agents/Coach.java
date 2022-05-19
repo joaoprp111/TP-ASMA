@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import Classes.AttackAndDefenseStrategy;
 import Classes.Decision;
 import Classes.Position;
 import Classes.VisionField;
+import Interface.IStrategy;
 import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
@@ -27,6 +29,7 @@ public class Coach extends Agent{
 	private String team;
 	private int maxTeamPlayers;
 	private HashSet<AID> players = new HashSet<AID>();
+	private IStrategy s = new AttackAndDefenseStrategy();
 	
 	protected void setup() {
 		super.setup();
@@ -119,16 +122,16 @@ public class Coach extends Agent{
 	}
 	
 	private Map<AID,Position> makeDecision(VisionField vf) {
-		Map<AID,Map<AID, Position>> visionField = vf.getVisionField();
+		Map<AID,Map<AID, Position>> visionFields = vf.getVisionField();
 		Map<AID,Position> teamPlayersPositions = vf.getPlayersPosition();
 		Map<AID,Position> destinations = new HashMap<AID,Position>();
 		boolean noEnemies = true;
 		
 		//Verificar se nenhum player tem visão de um inimigo
-		for(AID player: visionField.keySet()) {
+		for(AID player: visionFields.keySet()) {
 			String playerTeam = player.getLocalName().substring("Player".length(), "Player".length()+1);
-			if (visionField.get(player) != null) {
-				Map<AID,Position> m = visionField.get(player);
+			if (visionFields.get(player) != null) {
+				Map<AID,Position> m = visionFields.get(player);
 				for(AID a: m.keySet()) {
 					if(!a.getLocalName().substring("Player".length(),"Player".length()+1).equals(playerTeam)) {
 						noEnemies = false;
@@ -145,6 +148,31 @@ public class Coach extends Agent{
 				Position p = entry.getValue();
 				Position destination = calculateDestinationNoEnemies(p);
 				destinations.put(entry.getKey(), destination);
+			}
+		}
+		else {
+			//Estratégia
+			//Verificar para onde tem de ir cada jogador da equipa
+			for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
+				AID aid = entry.getKey();
+				Map<AID,Position> visionField = entry.getValue();
+				
+				String playerTeam = aid.getLocalName().substring("Player".length(), "Player".length()+1);
+				
+				boolean onlyEnemies = true;
+				//Verificar se todos os jogadores do campo deste jogador são inimigos
+				for(AID otherPlayer: visionField.keySet()) {
+					if(otherPlayer.getLocalName().substring("Player".length(),"Player".length()+1).equals(playerTeam)) {
+						onlyEnemies = false;
+						break;
+					}
+				}
+				if(onlyEnemies) {
+					//Se forem só inimigos o destino é fugir de acordo com a estratégia 's'
+					Position playerPosition = teamPlayersPositions.get(aid);
+					Position destination = s.runAway(aid, visionField, playerPosition);
+					destinations.put(aid, destination);
+				}
 			}
 		}
 		

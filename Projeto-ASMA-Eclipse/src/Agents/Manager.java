@@ -85,6 +85,12 @@ public class Manager extends Agent {
 							currentRound++;
 							System.out.println("Ronda " + currentRound);
 							System.out.print(board.toString());
+							try {
+								Thread.sleep(15000);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 						}
 					}
 				}
@@ -103,6 +109,12 @@ public class Manager extends Agent {
 			currentRound = 0;
 			System.out.println("Ronda " + currentRound);
 			System.out.print(board.toString());
+			try {
+				Thread.sleep(15000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			changePlayingTeam();
 			sendVisionFields(myAgent, currentPlayingTeam);
 			System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
