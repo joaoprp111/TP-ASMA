@@ -100,9 +100,10 @@ public class Coach extends Agent{
 			if (msg != null && msg.getPerformative() == ACLMessage.INFORM) {
 				try {
 					VisionField vf = (VisionField) msg.getContentObject();
-					System.out.println("Recebi os campos de visao");
+					//System.out.println("Recebi os campos de visao");
 					System.out.print(vf.toString());
 					Map<AID,Position> playersDestinations = makeDecision(vf);
+					System.out.println("Destinos da equipa" + team + ": " + playersDestinations.size());
 					Decision d = new Decision(playersDestinations);
 					if(playersDestinations.size() > 0) {
 						ACLMessage resp = msg.createReply();
@@ -132,6 +133,8 @@ public class Coach extends Agent{
 		
 		//Percorrer cada campo
 		for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
+			enemyCount = 0;
+			friendCount = 0;
 			AID playerId = entry.getKey();
 			String playerTeam = playerId.getLocalName().substring("Player".length(), "Player".length()+1);
 			//Calcular critério de vantagem (nº de amigos - nº de inimigos)

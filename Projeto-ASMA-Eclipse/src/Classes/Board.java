@@ -72,6 +72,16 @@ public class Board {
 		return visionFields;
 	}
 	
+	public AID getKey(Position p) {
+        for (Entry<AID, Position> entry: playersPositions.entrySet())
+        {
+            if (p.equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return null;
+	}
+	
 	public Map<AID, Position> getPositions(String team){
 		int offset = "PlayerX".length();
 		return playersPositions.entrySet().stream().filter(map -> map.getKey().getLocalName()
@@ -91,6 +101,17 @@ public class Board {
 		int c = p.getPosY();
 		board[oldL][oldC] = "-";
 		board[l][c] = a.getLocalName().substring("Player".length(),a.getLocalName().length());
+	}
+	
+	public void removePlayer(AID a) {
+		Position p = playersPositions.remove(a);
+		int l = p.getPosX();
+		int c = p.getPosY();
+		board[l][c] = "-";
+	}
+	
+	public boolean hasValue(Position p) {
+		return playersPositions.containsValue(p);
 	}
 	
 	private String[][] createEmptyBoard(int size){
@@ -115,10 +136,10 @@ public class Board {
 				if(board[i][j] != "-") {
 					AID id = new AID("Player" + board[i][j], AID.ISLOCALNAME);
 					Position p = playersPositions.get(id);
-					result += " | " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
+					result += "  |  " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
 				}
 				else {
-					result += " | " + board[i][j];
+					result += "  |  " + board[i][j];
 				}
 			}
 			result += " |\n";

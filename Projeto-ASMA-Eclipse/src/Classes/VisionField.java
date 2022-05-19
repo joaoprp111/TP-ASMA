@@ -27,10 +27,11 @@ public class VisionField implements Serializable {
 	public String toString() {
 		String result = "";
 		for(Entry<AID,Map<AID,Position>> e: visionField.entrySet()) {
-			result += "Jogador: " + e.getKey().getLocalName() + "\n";
+			result += "Jogador: " + e.getKey().getLocalName() + " | Campo de visão: ";
 			for(Entry<AID,Position> positions: e.getValue().entrySet()) {
-				result += "Jogador presente no campo: " + positions.getKey().getLocalName() + " | Posicao: " + positions.getValue().toString() + "\n";
+				result += positions.getKey().getLocalName() + " - Posicao: " + positions.getValue().toString() + " | ";
 			}
+			result += "\n";
 		}
 		return result;
 	}

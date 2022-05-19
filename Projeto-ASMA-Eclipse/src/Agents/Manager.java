@@ -67,26 +67,18 @@ public class Manager extends Agent {
 						//Pedido para mover jogadores
 						Decision d = (Decision) msg.getContentObject();
 						Map<AID,Position> destinations = d.getDestinations();
-						//Verificar posicoes validas e mover se for possivel
-						for(Entry<AID,Position> entry: destinations.entrySet()) {
-							Position dest = entry.getValue();
-							Map<AID,Position> currentPositions = board.getAllPositions();
-							
-							if(!currentPositions.values().contains(dest)) {
-								//Pode mover
-								board.setPosition(entry.getKey(), dest);
-							}
-						}
+						//Verificar posicoes e casos de morte
+						verify(destinations);
 						changePlayingTeam();
 						sendVisionFields(myAgent, currentPlayingTeam);
-						System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
+						//System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
 						if(teamPlayCount == 2) {
 							teamPlayCount = 0;
 							currentRound++;
 							System.out.println("Ronda " + currentRound);
 							System.out.print(board.toString());
 							try {
-								Thread.sleep(15000);
+								Thread.sleep(4000);
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -121,6 +113,64 @@ public class Manager extends Agent {
 			//System.out.print(currentPlayingTeam);
 			//addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
 		}
+	}
+	
+	private void verify(Map<AID,Position> destinations) {
+		//Verificar posicoes validas
+		for(Entry<AID,Position> entry: destinations.entrySet()) {
+			Position dest = entry.getValue();
+			Map<AID,Position> currentPositions = board.getAllPositions();
+			
+			if(!currentPositions.values().contains(dest)) {
+				//Pode mover
+				board.setPosition(entry.getKey(), dest);
+			}
+			else {
+				System.out.println("Nao pode mover para " + dest.toString());
+			}
+		}
+		//Verificar caso de morte de algum jogador
+		Map<AID,Position> updatedBoard = board.getAllPositions();
+		List<AID> deadPlayers = new ArrayList<AID>();
+		for(Entry<AID,Position> entry: updatedBoard.entrySet()) {
+			AID playerId = entry.getKey();
+			String playerTeam = playerId.getLocalName().substring("Player".length(), "Player".length()+1);
+			Position playerPosition = entry.getValue();
+			if(isDead(playerTeam,playerPosition)) {
+				System.out.println("O jogador " + playerId.getLocalName() + " morreu!");
+				deadPlayers.add(playerId);
+			}
+		}
+		for(AID dead: deadPlayers)
+			board.removePlayer(dead);
+	}
+	
+	private String getPlayerTeam(AID a) {
+		return a.getLocalName().substring("Player".length(), "Player".length()+1);
+	}
+	
+	private boolean isDead(String team,Position p) {
+		boolean dead = false;
+		
+		//Caso do meio
+		int l = p.getPosX();
+		int c = p.getPosY();
+		Position pU = new Position(l-1,c);Position pUR = new Position(l-1,c+1);
+		Position pR = new Position(l,c+1);Position pUL = new Position(l-1,c-1);
+		Position pD = new Position(l+1,c);Position pDR = new Position(l+1,c-1);
+		Position pL = new Position(l,c-1);Position pDL = new Position(l+1,c-1);
+		
+		if((board.getKey(pU) != null && !team.equals(getPlayerTeam(board.getKey(pU))) && board.hasValue(pU)
+			&& board.getKey(pR) != null && !team.equals(getPlayerTeam(board.getKey(pR))) && board.hasValue(pR)
+			&& board.getKey(pD) != null && !team.equals(getPlayerTeam(board.getKey(pD))) && board.hasValue(pD)
+			&& board.getKey(pL) != null && !team.equals(getPlayerTeam(board.getKey(pL))) && board.hasValue(pL)) || 
+			(board.getKey(pUR) != null && !team.equals(getPlayerTeam(board.getKey(pUR))) && board.hasValue(pUR)
+			&& board.getKey(pUL) != null && !team.equals(getPlayerTeam(board.getKey(pUL))) && board.hasValue(pUL)
+			&& board.getKey(pDR) != null && !team.equals(getPlayerTeam(board.getKey(pDR))) && board.hasValue(pDR)
+			&& board.getKey(pDL) != null && !team.equals(getPlayerTeam(board.getKey(pDL))) && board.hasValue(pDL)))
+				return true;
+		
+		return false;
 	}
 	
 	private void changePlayingTeam() {

@@ -25,7 +25,7 @@ public class AttackAndDefenseStrategy implements IStrategy {
 			AID playerId = e.getKey();
 			if(states.get(playerId) == "Attack") {
 				selectedVf = e.getValue();
-				System.out.println("Campo do jogador  " + e.getKey().getLocalName() + " escolhido para atacar!");
+				//System.out.println("Campo do jogador  " + e.getKey().getLocalName() + " escolhido para atacar!");
 				break;
 			}
 		}
@@ -36,6 +36,8 @@ public class AttackAndDefenseStrategy implements IStrategy {
 		
 		//Percorrer cada campo
 		for(Entry<AID,Map<AID,Position>> entry: visionFields.entrySet()) {
+			enemyCount = 0;
+			friendCount = 0;
 			AID playerId = entry.getKey();
 			String playerTeam = playerId.getLocalName().substring("Player".length(), "Player".length()+1);
 			//Calcular critério de vantagem (nº de amigos - nº de inimigos)
@@ -52,13 +54,13 @@ public class AttackAndDefenseStrategy implements IStrategy {
 			if(enemyCount > 0 && advantage > bestAdvantage) {
 				bestAdvantage = advantage;
 				selectedVf = entry.getValue();
-				System.out.println("Campo do jogador  " + entry.getKey().getLocalName() + " escolhido para atacar!");
+				//System.out.println("Campo do jogador  " + entry.getKey().getLocalName() + " escolhido para atacar! (2)");
 			}
 		}
 		
 		//Mandar os amigos atacar um inimigo do campo escolhido (se tiverem o estado atacar ou ir para o centro)
 		if(selectedVf.size() > 0) {
-			System.out.println("Tamanho do campo: " + selectedVf.size());
+			//System.out.println("Tamanho do campo: " + selectedVf.size());
 			Position target = null;
 			
 			for(Entry<AID,Position> e: selectedVf.entrySet()) {
@@ -74,10 +76,13 @@ public class AttackAndDefenseStrategy implements IStrategy {
 			for(Entry<AID,Position> entry: teamPlayersPositions.entrySet()) {
 				AID playerId = entry.getKey();
 				if(states.get(playerId) == "Attack" || states.get(playerId) == "GoCenter") {
+					//System.out.println("Vou criar um destino!");
 					Position playerPosition = entry.getValue();
-					Position destination = calculateDestination(playerPosition,target);
+					Position destination = calculateDestination(playerPosition,target,selectedVf.values());
 					if(dests.containsKey(playerId))
 						dests.replace(playerId,destination);
+					else
+						dests.put(playerId, destination);
 				}
 			}
 		}
@@ -152,17 +157,17 @@ public class AttackAndDefenseStrategy implements IStrategy {
 		return (int) Math.sqrt((p2C - p1C) * (p2C - p1C) + (p2L - p1L) * (p2L - p1L));
 	}
 	
-	private Position calculateDestination(Position p, Position target) {
+	private Position calculateDestination(Position p, Position target,Collection<Position> playersPositions) {
 		
-		List<Position> pos = calculateValidPositions(p);
-		Position destination = getClosestPosition(pos, target);
+		List<Position> pos = calculateValidPositionsAttack(p, playersPositions);
+		Position destination = getClosestPosition(p,pos,target);
 		
 		return destination;
 	}
 	
-	private Position getClosestPosition(List<Position> pos, Position targetPos) {
+	private Position getClosestPosition(Position playerPos,List<Position> pos, Position targetPos) {
 		double dist = 1000;
-		Position best = new Position(-1,-1);
+		Position best = playerPos;
 		for(Position p: pos) {
 			int l = p.getPosX();
 			int c = p.getPosY();
@@ -170,7 +175,7 @@ public class AttackAndDefenseStrategy implements IStrategy {
 			int cDest = targetPos.getPosY();
 			
 			double newDist = Math.sqrt((cDest - c) * (cDest - c) + (lDest - l) * (lDest - l));
-			if(newDist < dist) {
+			if(newDist > 0 && newDist < dist) {
 				dist = newDist;
 				best = p;
 			}
@@ -179,7 +184,7 @@ public class AttackAndDefenseStrategy implements IStrategy {
 		return best;
 	}
 	
-	private List<Position> calculateValidPositions(Position p) {
+	private List<Position> calculateValidPositionsAttack(Position p, Collection<Position> playersPositions) {
 		List<Position> list = new ArrayList<Position>();
 		int l = p.getPosX();
 		int c = p.getPosY();
@@ -187,7 +192,7 @@ public class AttackAndDefenseStrategy implements IStrategy {
 		for(int i = l-1; i < l+2; i++) {
 			for(int j = c-1; j < c+2; j++) {
 				Position p1 = new Position(i,j);
-				if(!p1.equals(p))
+				if(!p1.equals(p) && !playersPositions.contains(p1))
 					list.add(p1);
 			}
 		}
