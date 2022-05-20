@@ -103,7 +103,7 @@ public class Coach extends Agent{
 					//System.out.println("Recebi os campos de visao");
 					System.out.print(vf.toString());
 					Map<AID,Position> playersDestinations = makeDecision(vf);
-					System.out.println("Destinos da equipa" + team + ": " + playersDestinations.size());
+					//System.out.println("Destinos da equipa" + team + ": " + playersDestinations.size());
 					Decision d = new Decision(playersDestinations);
 					if(playersDestinations.size() > 0) {
 						ACLMessage resp = msg.createReply();

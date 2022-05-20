@@ -1,7 +1,13 @@
 package Agents;
 
+import java.util.Map;
+
+import Classes.Decision;
+import Classes.Position;
+import Classes.VisionField;
 import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 
@@ -46,6 +52,26 @@ public class Player extends Agent {
 			msg.setContent("Eu sou o player " + agentname);
 			myAgent.send(msg);
 
+		}
+	}
+	
+	private class ListeningBehaviour extends CyclicBehaviour{
+		
+		public void action() {
+			ACLMessage msg = receive();
+			if (msg != null && msg.getPerformative() == ACLMessage.INFORM) {
+				try {
+					String s = msg.getContent();
+					if (s == "You are dead") {
+						takeDown();
+					}
+				}
+				catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+					
+			}
 		}
 	}
 	

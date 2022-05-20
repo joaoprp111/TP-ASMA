@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import Classes.Board;
 import Classes.Decision;
 import Classes.Position;
+import Classes.Report;
 import Classes.VisionField;
 import jade.content.lang.Codec;
 import jade.content.lang.sl.SLCodec;
@@ -26,6 +27,7 @@ import jade.wrapper.ControllerException;
 
 public class Manager extends Agent {
 	private static int N = 35;
+	private static int MAXROUND = 150;
 	private static int NUMTEAMS = 2;
 	private boolean gameStarted = false;
 	private int currentRound = -1;
@@ -33,10 +35,13 @@ public class Manager extends Agent {
 	private String currentPlayingTeam;
 	int end = 0;
 	private String winner = "";
+	private String loser = "";
 	private int numPlayersWinner = 0;
+	private int numPlayersLoser = 0;
 	private Board board; //O tabuleiro vai apresentar os jogadores por A1, B1, etc; Onde não estiver ninguém a ocupar posição fica string "-"
 	private boolean knowsAllPlayers = false;
 	private HashMap<String,HashSet<AID>> teams = new HashMap<String,HashSet<AID>>();
+	private Report r;
 
 	protected void setup() {
 		super.setup();
@@ -54,7 +59,8 @@ public class Manager extends Agent {
 		public void action() {
 			if(end == 1) { //acabou
 				System.out.println("O jogo terminou...");
-				System.out.println("Vencedor: " + winner + " com " + numPlayersWinner + " jogadores vivos.");
+				r = new Report(winner, loser, numPlayersWinner, numPlayersLoser,currentRound);
+				System.out.print(r.toString());
 				end = 2;
 			} else if(end == 0) { //Não acabou
 				try {
@@ -82,23 +88,41 @@ public class Manager extends Agent {
 							//Pedido para mover jogadores
 							Decision d = (Decision) msg.getContentObject();
 							Map<AID,Position> destinations = d.getDestinations();
+							
 							//Verificar posicoes e casos de morte
-							verify(destinations);
+							List<AID> deadPlayers = verify(destinations);
+							//Remover os mortos do sistema
+							for(AID dead: deadPlayers) {
+								String playerTeam = dead.getLocalName().substring("Player".length(), "Player".length()+1);
+								board.removePlayer(dead);
+								HashSet<AID> teamPlayers = teams.get(playerTeam);
+								teamPlayers.remove(dead);
+								teams.replace(playerTeam,teamPlayers);
+								
+								// Avisar o agente player de que morreu
+								ACLMessage resp = new ACLMessage(ACLMessage.INFORM);
+								msg.addReceiver(dead);
+								resp.setContent("You are dead");
+								myAgent.send(resp);
+							}
+							
 							checkEndOfGame();
-							changePlayingTeam();
-							sendVisionFields(myAgent, currentPlayingTeam);
-							//System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
-							if(teamPlayCount == 2) {
-								teamPlayCount = 0;
-								currentRound++;
-								System.out.println("Ronda " + currentRound);
-								System.out.print(board.toString());
-								/*try {
-									Thread.sleep(4000);
-								} catch (InterruptedException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}*/
+							if(end != 1) {
+								changePlayingTeam();
+								sendVisionFields(myAgent, currentPlayingTeam);
+								//System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
+								if(teamPlayCount == 2) {
+									teamPlayCount = 0;
+									currentRound++;
+									System.out.println("Ronda " + currentRound);
+									System.out.print(board.toString());
+									/*try {
+										Thread.sleep(4000);
+									} catch (InterruptedException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}*/
+								}
 							}
 						}
 					}
@@ -134,37 +158,47 @@ public class Manager extends Agent {
 	
 	private String getWinner() {
 		String winner = "";
+		String loser = "";
 		int maxPlayers = -1;
+		int minPlayers = 1000;
 		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
 			if(entry.getValue().size() > maxPlayers) {
 				maxPlayers = entry.getValue().size();
 				winner = entry.getKey();
 			}
+			else if(entry.getValue().size() < minPlayers){
+				minPlayers = entry.getValue().size();
+				loser = entry.getKey();
+			}
 		}
 		
 		numPlayersWinner = maxPlayers;
+		numPlayersLoser = minPlayers;
+		this.loser = loser;
 		
 		return winner;
 	}
 	
 	private void checkEndOfGame() {
+		boolean end = false;
 		
 		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
 			if(entry.getValue().size() == 0) {
-				end = 1;
+				end = true;
 				break;
 			}
 		}
 		
-		if(end == 1 || currentRound == 100) {
+		if(end || currentRound == MAXROUND) {
 			//Acabou o jogo
 			//System.out.println("O jogo terminou...");
 			winner = getWinner();
+			this.end = 1;
 			//System.out.println("O vencedor é: " + winner);
 		}
 	}
 	
-	private void verify(Map<AID,Position> destinations) {
+	private List<AID> verify(Map<AID,Position> destinations) {
 		//Verificar posicoes validas
 		for(Entry<AID,Position> entry: destinations.entrySet()) {
 			Position dest = entry.getValue();
@@ -173,9 +207,6 @@ public class Manager extends Agent {
 			if(!currentPositions.values().contains(dest)) {
 				//Pode mover
 				board.setPosition(entry.getKey(), dest);
-			}
-			else {
-				System.out.println("Nao pode mover para " + dest.toString());
 			}
 		}
 		//Verificar caso de morte de algum jogador
@@ -191,14 +222,7 @@ public class Manager extends Agent {
 			}
 		}
 		
-		//Remover os mortos do sistema
-		for(AID dead: deadPlayers) {
-			String playerTeam = dead.getLocalName().substring("Player".length(), "Player".length()+1);
-			board.removePlayer(dead);
-			HashSet<AID> teamPlayers = teams.get(playerTeam);
-			teamPlayers.remove(dead);
-			teams.replace(playerTeam,teamPlayers);
-		}
+		return deadPlayers;
 	}
 	
 	private String getPlayerTeam(AID a) {
@@ -355,13 +379,6 @@ public class Manager extends Agent {
 				.collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
 		
 		VisionField vf = new VisionField(visionFieldsTeam, playersPosition);
-		
-		/*for(Entry<AID,Map<AID,Position>> e: visionFieldsTeamA.entrySet()) {
-			System.out.println(e.getKey().getLocalName());
-			for(Entry<AID,Position> positions: e.getValue().entrySet()) {
-				System.out.println("Jogador: " + positions.getKey().getLocalName() + " | Posicao: " + positions.getValue().toString());
-			}
-		}*/
 		
 		//Enviar para o coach
 		try {

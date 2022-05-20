@@ -70,7 +70,7 @@ public class AttackAndDefenseStrategy implements IStrategy {
 					break;
 				}
 			}
-			System.out.println("Posicao escolhida para atacar: " + target.toString());
+			//System.out.println("Posicao escolhida para atacar: " + target.toString());
 			
 			//Calcular os destinos de ataque dos jogadores da equipa
 			for(Entry<AID,Position> entry: teamPlayersPositions.entrySet()) {

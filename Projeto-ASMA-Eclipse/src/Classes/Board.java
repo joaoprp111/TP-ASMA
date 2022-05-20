@@ -99,7 +99,7 @@ public class Board {
 		int oldC = oldP.getPosY();
 		int l = p.getPosX();
 		int c = p.getPosY();
-		board[oldL][oldC] = "-";
+		board[oldL][oldC] = "--";
 		board[l][c] = a.getLocalName().substring("Player".length(),a.getLocalName().length());
 	}
 	
@@ -107,7 +107,7 @@ public class Board {
 		Position p = playersPositions.remove(a);
 		int l = p.getPosX();
 		int c = p.getPosY();
-		board[l][c] = "-";
+		board[l][c] = "--";
 	}
 	
 	public boolean hasValue(Position p) {
@@ -118,7 +118,7 @@ public class Board {
 		String[][] b = new String[size][size];
 		for(int i = 0; i < size; i++)
 			for(int j = 0; j < size; j++)
-				b[i][j] = "-";
+				b[i][j] = "--";
 		return b;		
 	}
 	
@@ -133,14 +133,15 @@ public class Board {
 		String result = "";
 		for(int i = 0; i < board.length; i++) {
 			for(int j = 0; j < board.length; j++) {
-				if(board[i][j] != "-") {
+				/*if(board[i][j] != "-") {
 					AID id = new AID("Player" + board[i][j], AID.ISLOCALNAME);
 					Position p = playersPositions.get(id);
 					result += "  |  " + board[i][j] + "(" + p.getPosX() + "," + p.getPosY() + ")";
 				}
 				else {
 					result += "  |  " + board[i][j];
-				}
+				}*/
+				result += " | " + board[i][j];
 			}
 			result += " |\n";
 		}
