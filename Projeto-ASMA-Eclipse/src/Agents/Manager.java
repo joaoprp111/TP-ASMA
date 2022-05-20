@@ -10,12 +10,19 @@ import Classes.Board;
 import Classes.Decision;
 import Classes.Position;
 import Classes.VisionField;
+import jade.content.lang.Codec;
+import jade.content.lang.sl.SLCodec;
+import jade.content.onto.Ontology;
+import jade.content.onto.basic.Action;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
+import jade.domain.JADEAgentManagement.JADEManagementOntology;
+import jade.domain.JADEAgentManagement.ShutdownPlatform;
 import jade.lang.acl.ACLMessage;
+import jade.wrapper.ControllerException;
 
 public class Manager extends Agent {
 	private static int N = 35;
@@ -24,6 +31,9 @@ public class Manager extends Agent {
 	private int currentRound = -1;
 	private int teamPlayCount = 0;
 	private String currentPlayingTeam;
+	int end = 0;
+	private String winner = "";
+	private int numPlayersWinner = 0;
 	private Board board; //O tabuleiro vai apresentar os jogadores por A1, B1, etc; Onde não estiver ninguém a ocupar posição fica string "-"
 	private boolean knowsAllPlayers = false;
 	private HashMap<String,HashSet<AID>> teams = new HashMap<String,HashSet<AID>>();
@@ -42,52 +52,59 @@ public class Manager extends Agent {
 	
 	private class ListeningBehaviour extends CyclicBehaviour {
 		public void action() {
-			try {
-				ACLMessage msg = myAgent.receive();
-				if (msg != null) {
-					int p = msg.getPerformative();
-					if (p == ACLMessage.INFORM && !knowsAllPlayers) {
-						HashSet<AID> players = (HashSet<AID>) msg.getContentObject();
-						Iterator<AID> i = players.iterator();
-						if (i.hasNext()) {
-							AID anyPlayerId = i.next();
-							String playerName = anyPlayerId.getLocalName();
-							int offset = "Player".length();
-							String playerTeam = playerName.substring(offset, offset + 1);
-							System.out.println("Manager: Recebi os players da equipa " + playerTeam + "!");
-							teams.put(playerTeam, players);
-							if (teams.size() == NUMTEAMS) {
-								knowsAllPlayers = true;
-								myAgent.addBehaviour(new InitializeGameBehaviour());
+			if(end == 1) { //acabou
+				System.out.println("O jogo terminou...");
+				System.out.println("Vencedor: " + winner + " com " + numPlayersWinner + " jogadores vivos.");
+				end = 2;
+			} else if(end == 0) { //Não acabou
+				try {
+					ACLMessage msg = myAgent.receive();
+					if (msg != null) {
+						int p = msg.getPerformative();
+						if (p == ACLMessage.INFORM && !knowsAllPlayers) {
+							HashSet<AID> players = (HashSet<AID>) msg.getContentObject();
+							Iterator<AID> i = players.iterator();
+							if (i.hasNext()) {
+								AID anyPlayerId = i.next();
+								String playerName = anyPlayerId.getLocalName();
+								int offset = "Player".length();
+								String playerTeam = playerName.substring(offset, offset + 1);
+								System.out.println("Manager: Recebi os players da equipa " + playerTeam + "!");
+								teams.put(playerTeam, players);
+								if (teams.size() == NUMTEAMS) {
+									knowsAllPlayers = true;
+									myAgent.addBehaviour(new InitializeGameBehaviour());
+								}
+							}
+						}
+						else if(p == ACLMessage.REQUEST) {
+							teamPlayCount++;
+							//Pedido para mover jogadores
+							Decision d = (Decision) msg.getContentObject();
+							Map<AID,Position> destinations = d.getDestinations();
+							//Verificar posicoes e casos de morte
+							verify(destinations);
+							checkEndOfGame();
+							changePlayingTeam();
+							sendVisionFields(myAgent, currentPlayingTeam);
+							//System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
+							if(teamPlayCount == 2) {
+								teamPlayCount = 0;
+								currentRound++;
+								System.out.println("Ronda " + currentRound);
+								System.out.print(board.toString());
+								/*try {
+									Thread.sleep(4000);
+								} catch (InterruptedException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}*/
 							}
 						}
 					}
-					else if(p == ACLMessage.REQUEST) {
-						teamPlayCount++;
-						//Pedido para mover jogadores
-						Decision d = (Decision) msg.getContentObject();
-						Map<AID,Position> destinations = d.getDestinations();
-						//Verificar posicoes e casos de morte
-						verify(destinations);
-						changePlayingTeam();
-						sendVisionFields(myAgent, currentPlayingTeam);
-						//System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
-						if(teamPlayCount == 2) {
-							teamPlayCount = 0;
-							currentRound++;
-							System.out.println("Ronda " + currentRound);
-							System.out.print(board.toString());
-							try {
-								Thread.sleep(4000);
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						}
-					}
+				} catch(Exception e) {
+					e.printStackTrace();
 				}
-			} catch(Exception e) {
-				e.printStackTrace();
 			}
 		}
 	}
@@ -112,6 +129,38 @@ public class Manager extends Agent {
 			System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
 			//System.out.print(currentPlayingTeam);
 			//addBehaviour(new PrepareRoundBehaviour(myAgent, 1000));
+		}
+	}
+	
+	private String getWinner() {
+		String winner = "";
+		int maxPlayers = -1;
+		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
+			if(entry.getValue().size() > maxPlayers) {
+				maxPlayers = entry.getValue().size();
+				winner = entry.getKey();
+			}
+		}
+		
+		numPlayersWinner = maxPlayers;
+		
+		return winner;
+	}
+	
+	private void checkEndOfGame() {
+		
+		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
+			if(entry.getValue().size() == 0) {
+				end = 1;
+				break;
+			}
+		}
+		
+		if(end == 1 || currentRound == 100) {
+			//Acabou o jogo
+			//System.out.println("O jogo terminou...");
+			winner = getWinner();
+			//System.out.println("O vencedor é: " + winner);
 		}
 	}
 	
@@ -141,8 +190,15 @@ public class Manager extends Agent {
 				deadPlayers.add(playerId);
 			}
 		}
-		for(AID dead: deadPlayers)
+		
+		//Remover os mortos do sistema
+		for(AID dead: deadPlayers) {
+			String playerTeam = dead.getLocalName().substring("Player".length(), "Player".length()+1);
 			board.removePlayer(dead);
+			HashSet<AID> teamPlayers = teams.get(playerTeam);
+			teamPlayers.remove(dead);
+			teams.replace(playerTeam,teamPlayers);
+		}
 	}
 	
 	private String getPlayerTeam(AID a) {
@@ -160,8 +216,8 @@ public class Manager extends Agent {
 		Position pD = new Position(l+1,c);Position pDR = new Position(l+1,c-1);
 		Position pL = new Position(l,c-1);Position pDL = new Position(l+1,c-1);
 		
-		if((board.getKey(pU) != null && !team.equals(getPlayerTeam(board.getKey(pU))) && board.hasValue(pU)
-			&& board.getKey(pR) != null && !team.equals(getPlayerTeam(board.getKey(pR))) && board.hasValue(pR)
+		if((board.getKey(pU) != null && !team.equals(getPlayerTeam(board.getKey(pU))) && board.hasValue(pU) 
+			&& board.getKey(pR) != null && !team.equals(getPlayerTeam(board.getKey(pR))) && board.hasValue(pR) 
 			&& board.getKey(pD) != null && !team.equals(getPlayerTeam(board.getKey(pD))) && board.hasValue(pD)
 			&& board.getKey(pL) != null && !team.equals(getPlayerTeam(board.getKey(pL))) && board.hasValue(pL)) || 
 			(board.getKey(pUR) != null && !team.equals(getPlayerTeam(board.getKey(pUR))) && board.hasValue(pUR)
@@ -170,6 +226,99 @@ public class Manager extends Agent {
 			&& board.getKey(pDL) != null && !team.equals(getPlayerTeam(board.getKey(pDL))) && board.hasValue(pDL)))
 				return true;
 		
+		// Cantos
+		//Canto (0,0)
+		Position p01 = new Position(0,1);
+		Position p10 = new Position(1,0);
+		Position p11 = new Position(1,1);
+		//Canto (0,34)
+		Position p033 = new Position(0,33);
+		Position p134 = new Position(1,34);
+		Position p133 = new Position(1,33);
+		//Canto (34,34)
+		Position p3334 = new Position(33,34);
+		Position p3433 = new Position(34,33);
+		Position p3333 = new Position(33,33);
+		//Canto (34,0)
+		Position p330 = new Position(33,0);
+		Position p341 = new Position(34,1);
+		Position p331 = new Position(33,1);
+		
+		//Bordas
+		//Borda de cima
+		Position pSupBoardLeft = new Position(0,c-1);
+		Position pSupBoardRight = new Position(0,c+1);
+		Position pSupBoardDown = new Position(l+1,c);
+		Position pSupBoardDiagLeft = new Position(l+1,c-1);
+		Position pSupBoardDiagRight = new Position(l+1,c+1);
+		//Borda da direita
+		Position pRightBoardSup = new Position(l-1,34);
+		Position pRightBoardDown = new Position(l+1,34);
+		Position pRightBoardLeft = new Position(l,c-1);
+		Position pRightBoardDiagSup = new Position(l-1,c-1);
+		Position pRightBoardDiagDown = new Position(l+1,c-1);
+		//Borda de baixo
+		Position pDownBoardRight = new Position(34,c+1);
+		Position pDownBoardLeft = new Position(34,c-1);
+		Position pDownBoardSup = new Position(l-1,c);
+		Position pDownBoardDiagLeft = new Position(l-1,c-1);
+		Position pDownBoardDiagRight = new Position(l-1,c+1);
+		//Borda da esquerda
+		Position pLeftBoardSup = new Position(l-1,0);
+		Position pLeftBoardDown = new Position(l+1,0);
+		Position pLeftBoardRight = new Position(l,c+1);
+		Position pLeftBoardDiagSup = new Position(l-1,c+1);
+		Position pLeftBoardDiagDown = new Position(l+1,c+1);
+		
+		if(l == 0 && c == 0 &&
+				((board.getKey(p01) != null && !team.equals(getPlayerTeam(board.getKey(p01))) && board.hasValue(p01)
+				&& board.getKey(p10) != null && !team.equals(getPlayerTeam(board.getKey(p10))) && board.hasValue(p10)) ||
+				(board.getKey(p11) != null && !team.equals(getPlayerTeam(board.getKey(p11))) && board.hasValue(p11))))
+			return true;
+		else if(l == 0 && c == 34 &&
+					((board.getKey(p033) != null && !team.equals(getPlayerTeam(board.getKey(p033))) && board.hasValue(p033)
+					&& board.getKey(p134) != null && !team.equals(getPlayerTeam(board.getKey(p134))) && board.hasValue(p134)) ||
+					(board.getKey(p133) != null && !team.equals(getPlayerTeam(board.getKey(p133))) && board.hasValue(p133))))
+				return true;		
+		else if(l == 34 && c == 34 &&
+					((board.getKey(p3334) != null && !team.equals(getPlayerTeam(board.getKey(p3334))) && board.hasValue(p3334)
+					&& board.getKey(p3433) != null && !team.equals(getPlayerTeam(board.getKey(p3433))) && board.hasValue(p3433)) ||
+					(board.getKey(p3333) != null && !team.equals(getPlayerTeam(board.getKey(p3333))) && board.hasValue(p3333))))
+				return true;
+		else if(l == 34 && c == 0 &&
+				((board.getKey(p330) != null && !team.equals(getPlayerTeam(board.getKey(p330))) && board.hasValue(p330)
+				&& board.getKey(p341) != null && !team.equals(getPlayerTeam(board.getKey(p341))) && board.hasValue(p341)) ||
+				(board.getKey(p331) != null && !team.equals(getPlayerTeam(board.getKey(p331))) && board.hasValue(p331))))
+			return true;
+		else if(l == 0 &&
+				((board.getKey(pSupBoardLeft) != null && !team.equals(getPlayerTeam(board.getKey(pSupBoardLeft))) && board.hasValue(pSupBoardLeft)
+				&& board.getKey(pSupBoardRight) != null && !team.equals(getPlayerTeam(board.getKey(pSupBoardRight))) && board.hasValue(pSupBoardRight)
+				&& board.getKey(pSupBoardDown) != null && !team.equals(getPlayerTeam(board.getKey(pSupBoardDown))) && board.hasValue(pSupBoardDown)) ||
+				(board.getKey(pSupBoardDiagLeft) != null && !team.equals(getPlayerTeam(board.getKey(pSupBoardDiagLeft))) && board.hasValue(pSupBoardDiagLeft)
+				&& board.getKey(pSupBoardDiagRight) != null && !team.equals(getPlayerTeam(board.getKey(pSupBoardDiagRight))) && board.hasValue(pSupBoardDiagRight))))
+			return true;
+		else if(c == 34 &&
+				((board.getKey(pRightBoardSup) != null && !team.equals(getPlayerTeam(board.getKey(pRightBoardSup))) && board.hasValue(pRightBoardSup)
+				&& board.getKey(pRightBoardDown) != null && !team.equals(getPlayerTeam(board.getKey(pRightBoardDown))) && board.hasValue(pRightBoardDown)
+				&& board.getKey(pRightBoardLeft) != null && !team.equals(getPlayerTeam(board.getKey(pRightBoardLeft))) && board.hasValue(pRightBoardLeft)) ||
+				(board.getKey(pRightBoardDiagSup) != null && !team.equals(getPlayerTeam(board.getKey(pRightBoardDiagSup))) && board.hasValue(pRightBoardDiagSup)
+				&& board.getKey(pRightBoardDiagDown) != null && !team.equals(getPlayerTeam(board.getKey(pRightBoardDiagDown))) && board.hasValue(pRightBoardDiagDown))))
+			return true;
+		else if(l == 34 &&
+				((board.getKey(pDownBoardRight) != null && !team.equals(getPlayerTeam(board.getKey(pDownBoardRight))) && board.hasValue(pDownBoardRight)
+				&& board.getKey(pDownBoardLeft) != null && !team.equals(getPlayerTeam(board.getKey(pDownBoardLeft))) && board.hasValue(pDownBoardLeft)
+				&& board.getKey(pDownBoardSup) != null && !team.equals(getPlayerTeam(board.getKey(pDownBoardSup))) && board.hasValue(pDownBoardSup)) ||
+				(board.getKey(pDownBoardDiagLeft) != null && !team.equals(getPlayerTeam(board.getKey(pDownBoardDiagLeft))) && board.hasValue(pDownBoardDiagLeft)
+				&& board.getKey(pDownBoardDiagRight) != null && !team.equals(getPlayerTeam(board.getKey(pDownBoardDiagRight))) && board.hasValue(pDownBoardDiagRight))))
+			return true;
+		else if(c == 0 &&
+				((board.getKey(pLeftBoardSup) != null && !team.equals(getPlayerTeam(board.getKey(pLeftBoardSup))) && board.hasValue(pLeftBoardSup)
+				&& board.getKey(pLeftBoardDown) != null && !team.equals(getPlayerTeam(board.getKey(pLeftBoardDown))) && board.hasValue(pLeftBoardDown)
+				&& board.getKey(pLeftBoardRight) != null && !team.equals(getPlayerTeam(board.getKey(pLeftBoardRight))) && board.hasValue(pLeftBoardRight)) ||
+				(board.getKey(pLeftBoardDiagSup) != null && !team.equals(getPlayerTeam(board.getKey(pLeftBoardDiagSup))) && board.hasValue(pLeftBoardDiagSup)
+				&& board.getKey(pLeftBoardDiagDown) != null && !team.equals(getPlayerTeam(board.getKey(pLeftBoardDiagDown))) && board.hasValue(pLeftBoardDiagDown))))
+			return true;
+
 		return false;
 	}
 	
