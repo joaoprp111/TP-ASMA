@@ -20,8 +20,12 @@ public class Report {
 		String res = "";
 		
 		res += "------------- Game report --------------\n";
-		res += "Team " + winner + " won with " + remainingPlayersWinner + " players remaining!\n";
-		res += "Team " + loser + " lost with " + remainingPlayersLoser + " players remaining!\n";
+		if (remainingPlayersWinner == remainingPlayersLoser)
+			res += "Draw, teams have " + remainingPlayersWinner + " alive\n";
+		else {
+			res += "Team " + winner + " won with " + remainingPlayersWinner + " players remaining!\n";
+			res += "Team " + loser + " lost with " + remainingPlayersLoser + " players remaining!\n";
+		}
 		res += "The game had a duration of " + durationInRounds + " rounds!\n";
 		
 		return res;

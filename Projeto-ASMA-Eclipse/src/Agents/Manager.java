@@ -33,6 +33,7 @@ public class Manager extends Agent {
 	private int currentRound = -1;
 	private int teamPlayCount = 0;
 	private String currentPlayingTeam;
+	private String startingTeam;
 	int end = 0;
 	private String winner = "";
 	private String loser = "";
@@ -60,6 +61,7 @@ public class Manager extends Agent {
 			if(end == 1) { //acabou
 				System.out.println("O jogo terminou...");
 				r = new Report(winner, loser, numPlayersWinner, numPlayersLoser,currentRound);
+				System.out.println("Equipa que comecou a jogar: " + startingTeam);
 				System.out.print(r.toString());
 				end = 2;
 			} else if(end == 0) { //Não acabou
@@ -149,6 +151,7 @@ public class Manager extends Agent {
 				e.printStackTrace();
 			}
 			changePlayingTeam();
+			startingTeam = currentPlayingTeam;
 			sendVisionFields(myAgent, currentPlayingTeam);
 			System.out.println("Enviei campos de visao ao coach " + currentPlayingTeam);
 			//System.out.print(currentPlayingTeam);
@@ -158,25 +161,32 @@ public class Manager extends Agent {
 	
 	private String getWinner() {
 		String winner = "";
-		String loser = "";
 		int maxPlayers = -1;
-		int minPlayers = 1000;
 		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
 			if(entry.getValue().size() > maxPlayers) {
 				maxPlayers = entry.getValue().size();
 				winner = entry.getKey();
 			}
-			else if(entry.getValue().size() < minPlayers){
+		}
+		
+		numPlayersWinner = maxPlayers;
+		
+		return winner;
+	}
+	
+	private String getLoser() {
+		String loser = "";
+		int minPlayers = 1000;
+		for(Entry<String,HashSet<AID>> entry: teams.entrySet()) {
+			if(entry.getValue().size() < minPlayers) {
 				minPlayers = entry.getValue().size();
 				loser = entry.getKey();
 			}
 		}
 		
-		numPlayersWinner = maxPlayers;
 		numPlayersLoser = minPlayers;
-		this.loser = loser;
 		
-		return winner;
+		return loser;
 	}
 	
 	private void checkEndOfGame() {
@@ -193,6 +203,7 @@ public class Manager extends Agent {
 			//Acabou o jogo
 			//System.out.println("O jogo terminou...");
 			winner = getWinner();
+			loser = getLoser();
 			this.end = 1;
 			//System.out.println("O vencedor é: " + winner);
 		}
